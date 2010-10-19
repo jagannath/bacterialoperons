@@ -84,11 +84,24 @@ def prob_group_order(groups, group_dictionary):
     @parameter output:	probability_gene_order
     """
     # Initializing
+    i = 1
+    group_pair = []
+    group_pairs = []
     
+    group_1 = groups[0]
     
+    for group_2 in groups:
+	if i>1:
+	    group_pair = [group_1, group_2]
+	    group_pairs.append(group_pair)
+	    group_1 = group_2
+	i+=1
+    
+    print group_pairs
+
     return
     
-class Groups:
+#class Groups:
     """ Contains information about the group_order which is passed. Performs 
     """
 
