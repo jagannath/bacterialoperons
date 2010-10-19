@@ -1,0 +1,20 @@
+This project aims to understand the architecture behind the construction of the operons
+
+Step 1: Parsing the gbk files. 
+	parsinggbk.py
+	For this it will need a list file which details the location of the different genomes.It parses the various files in a directory for itself under a bigger directory made called parsedgbkfiles. The parsing file requires access to
+	mysql server. This is relatively fast. But ensure that there is plenty of disc space.
+Step 2: Ecogenedata and operonset_parsing.
+	ecogene_data_parsing.py
+	operonset_parsing.py
+	This updates the database orthomcl266 with tables detailing the ecoli genes, its presence in operons, description etc. The operonset.txt was downloaded from EcoCyc and the other ecogenedata from ecogene. This too needs mysql 
+	access and thus needs to be run on noether.  
+Step 3: Orthomcl
+	orthomcl_piping.py
+	This is an open source code available for running a mcl algorithm to cluster the allvsall blast results into groups.
+Step 4: Rank difference between groups
+	The groups created by orthomcl is now parsed and a table lookup via mysql is done. There is a walk across the ecoli genes (in order) and the rank difference is calculated between the organisms that are in the group. 
+	An output file allwalks_output.txt gives the genewalk frequency of its conservation
+	grouping_rankdifferenc.py
+
+

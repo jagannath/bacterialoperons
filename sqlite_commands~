@@ -1,0 +1,44 @@
+SELECT c.sequence_id, c.rank, c.left_end, c.right_end, g.group_id, COUNT(*)
+FROM
+(SELECT group_id, sequence_id
+FROM groups
+WHERE group_id = 'JEM_7877') g
+INNER JOIN coding_sequences c
+ON c.sequence_id = g.sequence_id
+
+SELECT ecoli_gene_operonset.operon_name, coding_sequences.sequence_id, coding_sequences.rank, groups.group_id
+FROM coding_sequences
+INNER JOIN ecoli_gene_operonset
+ON coding_sequences.locus_tag = ecoli_gene_operonset.b_number
+INNER JOIN groups
+ON coding_sequences.sequence_id = groups.sequence_id
+WHERE ecoli_gene_operonset.number_genes_operon>1
+ORDER BY coding_sequences.rank
+
+
+SELECT ecoli_gene_operonset.operon_name, c.sequence_id, c.rank, c.gene_id, c.orientation, c.left_end, c.right_end 
+FROM 
+(SELECT sequence_id, rank, locus_tag, gene_id, orientation, left_end, right_end
+FROM coding_sequences
+WHERE accession_number = 'NC_000913') c
+INNER JOIN ecoli_gene_operonset
+ON c.locus_tag = ecoli_gene_operonset.b_number
+INTO OUTFILE 'test.txt'
+
+SELECT ecoli_gene_operonset.operon_name, c.sequence_id, c.rank, c.gene_id, c.orientation, c.left_end, c.right_end, groups.group_id
+FROM 
+(SELECT sequence_id, rank, locus_tag, gene_id, orientation, left_end, right_end
+FROM coding_sequences
+WHERE accession_number = 'NC_000913') c
+INNER JOIN ecoli_gene_operonset
+ON c.locus_tag = ecoli_gene_operonset.b_number
+INNER JOIN groups
+ON c.sequence_id = groups.sequence_id
+
+SELECT sequence_id, rank
+FROM coding_sequences
+WHERE rank = 
+(SELECT rank
+FROM coding_sequences
+WHERE sequence_id = 'NC_000913|b0010')+1 
+AND accession_number = 'NC_000913'
