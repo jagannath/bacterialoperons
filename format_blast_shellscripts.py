@@ -1,6 +1,7 @@
 # This script is to make a formatdb and blast command for shell on all the Fasta files from the organisms with the complete genomes (not plasmids)
 
 import os
+import os.path
 import re
 
 def make_dir(dir_name,path = os.getcwd()):
@@ -20,23 +21,23 @@ def make_dir(dir_name,path = os.getcwd()):
 	
 
 
-def open_list_file(listfile):
-    """ This function opens the listfile (which contains all the path for all the newly parsed files)
-    It takes in the filename and passes back a list containing all the paths present in the lst file """
+#def open_list_file(listfile):
+    #""" This function opens the listfile (which contains all the path for all the newly parsed files)
+    #It takes in the filename and passes back a list containing all the paths present in the lst file """
     
-    # Initializing
-    paths = []
-    number_paths = 0
+    ## Initializing
+    #paths = []
+    #number_paths = 0
 
-    file_handle = open(listfile,'r')	
-    lines = file_handle.readlines()
-    for line in lines:
-	paths.append(line[:-1])	# :-1 is to remove the \n newline character
-	number_paths += 1
+    #file_handle = open(listfile,'r')	
+    #lines = file_handle.readlines()
+    #for line in lines:
+	#paths.append(line[:-1])	# :-1 is to remove the \n newline character
+	#number_paths += 1
 	
-    file_handle.close()
+    #file_handle.close()
     
-    return number_paths, paths
+    #return number_paths, paths
 
 def shell_format_database(file_paths,number):
     """ This function makes a shell script for performing a formatdb on all the files in the directory in which the parsed gbk file is stored
@@ -62,16 +63,17 @@ def shell_format_database(file_paths,number):
     
     return
 
-def blast_all(file_paths,number=0):
+def blast_all_script(file_paths,number=0):
     
     #Initializing
     all_command_lines = []
     
     # Creating shell file and writing the firstline
-    file_name = 'blastall_%s.sh'%(str(number))
+    new_blast_scripts_dir = make_dir('blast_sh')
+    file_name = new_blast_scripts_dir + '/' + 'blastall_%s.sh'%(str(number))
     ifile = open(file_name,'w')
-    ifile.write('#!/bin/bash \n')
-    
+    #ifile.write('#!/bin/bash \n')
+    print "Writing shell scripts ..."
     for query in file_paths:
 	for database in file_paths:
 	    query_dir, fasta_file_query = os.path.split(query)
@@ -88,7 +90,8 @@ def blast_all(file_paths,number=0):
 	    result_file_name = new_dir_path + '/' + query_name + 'vs' + database_name + '.blast'
 	    #print result_file_name
 	    evalue = '0.001' # evalue (set at) = E-5
-	    command_line = 'blastall -p blastp -d ' + database + ' -i ' + query + ' -e ' + evalue + ' -m 8 ' + ' -o ' + result_file_name + '\n'
+	    command_line = 'blastall -p blastp -d ' + database + ' -i ' + query + ' -e ' + evalue + ' -m 8 ' + ' -o ' + result_file_name + '\n' + 'echo ' + result_file_name + ' > out.1 \n'
+	    
 	    all_command_lines.append(command_line)
 
     ifile.writelines(all_command_lines)
@@ -96,16 +99,42 @@ def blast_all(file_paths,number=0):
 
     return
 
+def get_list_fasta():
+    """ This performs an os.walk on the directory parsed_gbk_files_genomes and picks up all the .fasta files out
+    """
+    #Initializing
+    fasta_file_list = []
+    base_dir = os.getcwd() + '/parsed_gbk_files_genomes'	#Even when in untar the tar file this is the base directory
+    ecoli_path = ''
+    
+    for root, dirs, files in os.walk(base_dir):
+	for item in files:
+	    if item.endswith('.fasta'):
+		fasta_file = root + '/' + item
+		fasta_file_list.append(fasta_file)
+		if item == 'NC_000913.fasta': ecoli_path = fasta_file
+		
+    return len(fasta_file_list), fasta_file_list, ecoli_path
 
 if __name__ == '__main__':
     
     cwd = os.getcwd()
-    for number in xrange(0,6):
-	list_file = 'created_fasta_%s.lst'%(str(number))
-        number_paths, paths = open_list_file(list_file)
-	shell_format_database(paths,number)
-	blast_all(paths,number)
-	
+    #list_file = 'created_fasta_%s.lst'%(str(number))
+    number_paths, paths,ecoli_ref_path = get_list_fasta()
+    #shell_format_database(paths,number)
+    number_organisms = 200	
+    shorter_list = paths[0:100]	#The first 200 organisms
+    #Will just generate a single blastall_#.sh file which will contain all the combinations of the shorter_list
+    # Check if it contains the ecoli_ref. If not appends it to the list
+    if ecoli_ref_path in shorter_list:
+	pass
+    else:
+	shorter_list.append(ecoli_ref_path)
+    
+    
+    number = 1
+    blast_all_script(shorter_list,number)
+    
     print "completed"
 	
 

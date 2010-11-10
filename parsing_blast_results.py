@@ -27,7 +27,7 @@ def append_blast_file(file_name):
     """
     
     #Initializing
-    path = os.getcwd() + '/blast_results'
+    path = os.getcwd() + '/blast_200/blast_results'
     file_name_path = path + '/' + file_name
     
     ifile = open_file(file_name_path)
@@ -44,7 +44,7 @@ def append_blast_file(file_name):
     
  
 
-def open_blast_files(blast_dir = os.getcwd() + '/blast_results'):
+def open_blast_files(blast_dir = os.getcwd() + '/blast_200/blast_results'):
     """ This function opens the blast result directory that contains 1000s of files, parses each one of them for the criteria of sequence length and evalue (which personally i think orthomcl will handle). 
     """
     

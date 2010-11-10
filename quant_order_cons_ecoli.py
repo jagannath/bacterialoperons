@@ -12,6 +12,14 @@
 # 		3) 'coding_sequences.txt' - Generated from the sqlite command by obtaining information of the CDS. It has the following columns (tab delimited)
 #			(a) sequence_id, (b) rank, (c) orientation (d) left_end, (e) right_end (f) sequence_length (g) accession_number (i) taxon_id
 
+# Modified - 5th Nov 2010
+# Files used:	1) 'ecoli_cluster.txt'. - Generated from sqlite command of joining three tables. Operon name, locus tag, sequence_length, rank, orientation, left_end, right_end, cluster_accession, protein_name
+#		2) 'cluster_locus_tag.txt' - This is generated from the table protein_clusters. Cluster_accession, locus_tag and organism_name
+#		3) 'coding_sequences.txt'- Generated from the sqlite command by obtaining information of the CDS. It has the following columns (tab delimited)
+#			(a) locus_tag (but using as sequence_id everywhere to match with the newly made cluster_dictionary, (b) rank, (c) orientation (d) left_end, (e) right_end (f) sequence_length (g) accession_number (i) taxon_id
+
+
+
 import numpy as np
 
 class Groups:
@@ -66,32 +74,60 @@ class Groups:
 	return [sequence_id, rank, orientation, left_end, right_end, accession_number]
 			    
 
-    def find_group_members(self,group_name):
-	""" Input:	group_name = example: 'JEM_5'
-	    Function:	1. Adds a ':' to the group_name
-			2. Look for the group name in 'groups.txt' and return back the sequence_id of the members (they are separated by ' ')
-	    Output:	List of all the sequence_ids of the members in that group
+    #def find_group_members(self,group_name):
+	#""" Input:	group_name = example: 'JEM_5'
+	    #Function:	1. Adds a ':' to the group_name
+			#2. Look for the group name in 'groups.txt' and return back the sequence_id of the members (they are separated by ' ')
+	    #Output:	List of all the sequence_ids of the members in that group
+	#"""
+	##Initializing
+	#group_members = []
+	#acc_no = ''
+	#rank = ''
+	
+	#ifile = open_file('groups.txt')
+	#lines = ifile.readlines()
+	#ifile.close()
+	
+	#for line in lines:
+	    #if line.startswith(group_name+':'):
+		#split_line = line.split(' ')	#Space is all that separates the different sequenceids
+		#(split_line.pop(0))[:-1]	#It has a ':' in the end
+		
+		#for sequence in split_line:
+		    #sequence_id = sequence.replace('\n','')
+		    #sequence_details = self.get_details(sequence_id,acc_no,rank)
+		    #group_members.append(sequence_details)
+	
+	#print group_members
+	#return group_members
+    def find_group_members(self, group_name):
 	"""
+	@param input:	group_name = cluster_accession number  
+	@function:	This generates the list of all the sequence_details of the sequences that are identified by the locus_tag. Uses the file - cluster_locus_tag.txt
+	@param output:	group_members - These are the list of all the sequence_ids (locus_tag) in that cluster or group
+	"""
+	
 	#Initializing
+	ifile = open_file('cluster_locus_tag.txt')
+	lines = ifile.readlines()
+	ifile.close()
 	group_members = []
 	acc_no = ''
 	rank = ''
 	
-	ifile = open_file('groups.txt')
-	lines = ifile.readlines()
-	ifile.close()
-	
 	for line in lines:
-	    if line.startswith(group_name+':'):
-		split_line = line.split(' ')	#Space is all that separates the different sequenceids
-		(split_line.pop(0))[:-1]	#It has a ':' in the end
-		
-		for sequence in split_line:
-		    sequence_id = sequence.replace('\n','')
-		    sequence_details = self.get_details(sequence_id,acc_no,rank)
+	    if line.startswith(group_name):
+		cluster_accession, sequence_id = line.split('\t')[0], line.split('\t')[1]
+		sequence_details = self.get_details(sequence_id, acc_no, rank)
+		print sequence_details
+		if (sequence_details[0]) and (sequence_details[1]) and (sequence_details[2]):
 		    group_members.append(sequence_details)
-
+	print "In find_group_members"
+	print group_members
 	return group_members
+	
+	
 
     def check_orientation(self,orientation_a, orientation_b):
 	"""
@@ -175,6 +211,8 @@ class Groups:
 		
 		sequence_id, rank, orientation, left_end, right_end, accession_number = next_gene[0], next_gene[1], next_gene[2], next_gene[3], next_gene[4], next_gene[5]
 		
+		print "In get_details_non_adjacent_genes"
+		print next_gene
 		assert (orientation_a) and (orientation)
 		
 		orientation_status = self.check_orientation(orientation_a, orientation)
@@ -194,7 +232,7 @@ class Groups:
 		next_group = 'Null'
 		
 	    all_non_became_groups.append(next_group)
-	    
+	
 	return non_adjacent_gene_pairs, all_non_became_groups
 
     def find_adjacent_pairs(self):
@@ -213,11 +251,14 @@ class Groups:
 	difference_details = []
 	non_adjacent_gene_pairs = []
 	
-	
+
 	self.group_a_members = self.find_group_members(group_a)
 	self.group_b_members = self.find_group_members(group_b)
 	
+	
+	
 	for gene_a in self.group_a_members:
+	
 	    rank_a,orientation_a,left_end_a,right_end_a, acc_no_a = int(gene_a[1]), gene_a[2], int(gene_a[3]), int(gene_a[4]), gene_a[5]
 	    for gene_b in self.group_b_members:
 		rank_b,orientation_b,left_end_b,right_end_b, acc_no_b = int(gene_b[1]), gene_b[2], int(gene_b[3]), int(gene_b[4]), gene_b[5]
@@ -234,6 +275,9 @@ class Groups:
 	self.non_adjacent_gene_pairs = non_adjacent_gene_pairs
 	
 	if not (difference_details) : difference_details = ['No Adjacent gene pair']
+	
+	print "In find_adjacent_pairs"
+	print count, difference_details
 	
 	return count, difference_details
 
@@ -265,41 +309,41 @@ def get_ecoli_genes(query_operon):
     ecoli_genes_information = []
     group_order = []
     
-    ifile = open_file('ecoli_data.txt')
+    ifile = open_file('ecoli_cluster.txt')
     lines = ifile.readlines()
     ifile.close()
     
     for line in lines:
 	if query_operon == line.split('\t')[0]:
 	    split_line = line.split('\t')
-	    [sequence_id, rank, orientation, left_end, right_end, group_id] = split_line[1], split_line[3], split_line[5], split_line[6], split_line[7], split_line[8][:-1]
+	    [sequence_id, rank, orientation, left_end, right_end, group_id] = split_line[1], split_line[3], split_line[4], split_line[5], split_line[6], split_line[7]
 	    orientation_status = orientation
 	    ecoli_genes_information.append([sequence_id, rank, orientation, left_end, right_end, group_id])
 	    group_order.append(group_id)
 	    
     return ecoli_genes_information, group_order, orientation_status
 		
-def sequence_group_dictionary():
-    """ This function creates a dictionary of sequence_id and group_id with sequence_id (key): group_id (value). The details are taken from the groups.txt file created by orthomcl. 
-    Returns: sequenceid_group_dictionary
-    """
-    #Initializing
-    group_dictionary = {}
-    split_line = line = sequence_id = sequence = ''
+#def sequence_group_dictionary():
+    #""" This function creates a dictionary of sequence_id and group_id with sequence_id (key): group_id (value). The details are taken from the groups.txt file created by orthomcl. 
+    #Returns: sequenceid_group_dictionary
+    #"""
+    ##Initializing
+    #group_dictionary = {}
+    #split_line = line = sequence_id = sequence = ''
     
-    ifile = open_file('groups.txt')
-    lines = ifile.readlines()
-    ifile.close()
+    #ifile = open_file('groups.txt')
+    #lines = ifile.readlines()
+    #ifile.close()
     
-    for line in lines:
-	split_line = line.split(' ')	#Space is all that separates the different sequenceids
-	group_name = (split_line.pop(0))[:-1]	#It has a ':' in the end
+    #for line in lines:
+	#split_line = line.split(' ')	#Space is all that separates the different sequenceids
+	#group_name = (split_line.pop(0))[:-1]	#It has a ':' in the end
 	
-	for sequence in split_line:
-	    sequence_id = sequence.replace('\n','')	#Some seq id has this annoying carriage return
-	    group_dictionary[sequence_id] = group_name
+	#for sequence in split_line:
+	    #sequence_id = sequence.replace('\n','')	#Some seq id has this annoying carriage return
+	    #group_dictionary[sequence_id] = group_name
 	    
-    return group_dictionary
+    #return group_dictionary
 			    
 def prob_group_order(groups, operon,group_dictionary):
     """
@@ -327,10 +371,10 @@ def prob_group_order(groups, operon,group_dictionary):
 	i+=1
 
     for group_pair in group_pairs:
-
 	gene_pair = Groups(group_pair,group_dictionary)
 	number_conserved_gene_pair, difference_details = gene_pair.find_adjacent_pairs()
-
+	print difference_details
+	
 	non_adjacent_gene_pairs, all_non_became_groups = gene_pair.get_details_non_adjacent_genes()
 	print group_pair, non_adjacent_gene_pairs, all_non_became_groups
 	all_non_became_groups.append(group_pair[1])
@@ -349,7 +393,7 @@ def prob_group_order(groups, operon,group_dictionary):
 	print information_for_file
 	
 	# Appending information to file - operon_walk_gene_pairs.txt
-	ifile = open_file('walk_in_operon.txt','a')
+	ifile = open_file('walk_in_operon_protcluster.txt','a')
 	ifile.write(information_for_file)
 
     ifile.close()
@@ -366,27 +410,41 @@ def operon_walks(group_dictionary):
     group_order = []
     all_gene_pairs = []
 
-    ifile = open_file('ecoli_data.txt')
+    ifile = open_file('ecoli_cluster.txt')
     lines = ifile.readlines()
     ifile.close()
 
     operon_list = set([line.split('\t')[0] for line in lines])
     
-    for operon in operon_list:
+    #for operon in operon_list:
 		
-	ecoli_genes, group_order, operon_orientation_status = get_ecoli_genes(operon)	
+	#ecoli_genes, group_order, operon_orientation_status = get_ecoli_genes(operon)	
+	#print ecoli_genes, group_order, operon_orientation_status
 
-	if operon_orientation_status == 'reverse':
-	    group_order.reverse()
+	#if operon_orientation_status == 'reverse':
+	    #group_order.reverse()
 	
-	try:
-	    assert len(group_order) > 1
-	    number_gene_pairs, total_gene_pairs = prob_group_order(group_order, operon, group_dictionary)
-	    all_gene_pairs.append(number_gene_pairs)
-	except AssertionError:
-	    pass
+	#try:
+	    #assert len(group_order) > 1
+	    #number_gene_pairs, total_gene_pairs = prob_group_order(group_order, operon, group_dictionary)
+	    #all_gene_pairs.append(number_gene_pairs)
+	#except AssertionError:
+	    #pass
 	
-
+    operon = 'trpLEDCBA'
+    ecoli_genes, group_order, operon_orientation_status = get_ecoli_genes(operon)	
+    print ecoli_genes, group_order, operon_orientation_status
+    
+    if operon_orientation_status == 'reverse':
+	group_order.reverse()
+	
+    try:
+	assert len(group_order) > 1
+	number_gene_pairs, total_gene_pairs = prob_group_order(group_order, operon, group_dictionary)
+	all_gene_pairs.append(number_gene_pairs)
+    except AssertionError:
+	pass
+		
     
     return 
 
@@ -395,7 +453,7 @@ def between_operon_walks(group_dictionary):
     @function: This function reads the 'ecoli_data.txt' file and watches when the operon name changes and passes the groups of these two as the group_order to the class
     """
     #Initializing
-    ifile = open_file('ecoli_data.txt')
+    ifile = open_file('ecoli_cluster.txt')
     lines = ifile.readlines()
     ifile.close()
     i = 1
@@ -425,6 +483,7 @@ def between_operon_walks(group_dictionary):
 	
 	operon_pair = all_info_pair[0]
 	group_pair = all_info_pair[1]
+	print group_pair
 	gene_pair = Groups(group_pair,group_dictionary)
 	number_conserved_gene_pair, difference_details = gene_pair.find_adjacent_pairs()
 	
@@ -441,13 +500,35 @@ def between_operon_walks(group_dictionary):
 	walk_number += 1
 	
     # Appending information to file - operon_walk_gene_pairs.txt
-    ifile = open_file('walk_between_operon.txt','w')
+    ifile = open_file('walk_between_operon_protclusters.txt','w')
     ifile.write(all_information)
     
     ifile.close()
 
     return
     
+def get_cluster_locus_tag_dictionary():
+    """
+    @param input:	None
+    @function:		This function obtains the key:value dictionary pair for cluster_accession as the value and locus_tag being the group. 
+    It uses the file - cluster_locus_tag.txt. This has two columns - cluster accession and locus_tag. Just converting it to key:value pair for faster identification
+    @param output:	cluster_dictionary -It returns back the dictionary list. I am keeping the name cluster_dictionary just for this function as I dont want to mess up the class which everywhere uses group_dictionary
+    """
+    
+    # Initializing
+    file_name = 'cluster_locus_tag.txt'
+    ifile = open_file(file_name)
+    lines = ifile.readlines()
+    ifile.close()
+    cluster_dictionary = {}
+    
+    for line in lines:
+	cluster_accession, locus_tag = line.split('\t')[0],line.split('\t')[1]
+	cluster_dictionary[locus_tag] = cluster_accession
+	
+    return cluster_dictionary
+    
+
 
 if __name__ == '__main__':
     
@@ -455,7 +536,10 @@ if __name__ == '__main__':
     ##query_operon = 'trpLEDCBA'
     ##query_operon = 'leuLABCD'
     #query_operon = 'mraZ-rsmH-ftsLI-murEF-mraY-murD-ftsW-murGC-ddlB-ftsQAZ-lpxC'
-    group_dictionary = sequence_group_dictionary()
-    #operon_walks(group_dictionary)
-    between_operon_walks(group_dictionary)
+
+    #group_dictionary = sequence_group_dictionary()
+    cluster_dictionary = get_cluster_locus_tag_dictionary()
+    
+    #operon_walks(cluster_dictionary)
+    between_operon_walks(cluster_dictionary)
     

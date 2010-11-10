@@ -95,7 +95,7 @@ class Gbk_file:
 	#Initializing
 	i = 1
 	all_cds_identifiers = []
-	
+
 
 	for cds in all_cds:
 	    
@@ -103,7 +103,8 @@ class Gbk_file:
 	    cds = cds.replace(' ','')	#Removes all the empty spaces
 	    cds = cds.replace('\n','')	#Removes all the lines
 	    cds = cds.split('//')
-
+	    locus_tag = None
+	    
 	    for identifier in cds:
 		if (identifier.find('db_xref="GeneID')>-1):	#if there is a mismatch -1 is given back not False or 0! This is Gene ID and not GI 
 		    gene_id = identifier[16:-1]
@@ -111,10 +112,10 @@ class Gbk_file:
 		    gene_id = None
 		if (identifier.find('locus_tag')>-1):	#This is annoying as some of the gbk files have something called old_locus_tag
 		    if ((identifier.find('old_locus_tag'))>-1): pass
-		    else: locus_tag = identifier[11:-1]
-		else: locus_tag = None
-		    
-		if ((identifier.find('CDS')>-1) and (identifier.find('..')>-1) and not (identifier.find('transl_except')>-1)):
+		    else:
+			locus_tag = identifier[11:-1]
+		
+		if ((identifier.startswith('CDS')) and (identifier.find('..')>-1) and not (identifier.find('transl_except')>-1)):
 		    position_gene = identifier[3:]
 		    position_gene = position_gene.replace('>','')
 		    position_gene = position_gene.replace('<','')
@@ -129,15 +130,18 @@ class Gbk_file:
 		if (identifier.find('translation=')>-1):
 		    sequence = identifier[13:-1]
 		    sequence_length = len(sequence)
-		    
-	    
-	    if not locus_tag: locus_tag = protein_id	#There are some gbk files without locus_tag and gene_id (Found in Ecoli W3110)
+
+	    if not locus_tag: locus_tag = protein_id 	#There are some gbk files without locus_tag and gene_id (Found in Ecoli W3110)
 	    if not gene_id: gene_id = protein_id
 	    rank = "rank=%d"%(i)
-
+	    
 	    joined, orientation, left_end, right_end = self.parse_position_gene(position_gene)	#Function which will parse the position_gene string well.
 	    i += 1
-		
+	    
+	    if not isinstance(int(left_end),int): 
+		print gene_id, locus_tag, protein_id, rank, joined, orientation, left_end, right_end, sequence, sequence_length
+		sys.exit(1)
+	    
 	    accession_number, taxon_id = self.organism_information[0], self.organism_information[3]
 	    sequence_id = accession_number + '|' + locus_tag
 	    
@@ -209,6 +213,7 @@ class Gbk_file:
 	all_cds_information = []
 	cds_identifiers = ''
 	all_cds_identifiers = []
+	count = 0
 	
 	accession_number = self.organism_information[0]
 	taxon_id = self.organism_information[3]
@@ -218,18 +223,35 @@ class Gbk_file:
 	ifile.close()
 	
 	# Extract the CDS alone
+	# This is a complicated logic. It aims to identify the start of the line with CDS and read it it encounters another start. But has to include the CDS line and so sometimes the CDS block may be accompanied by 
 	for line in lines:
-	        
-	    if line.startswith('     CDS'): flag = True
 	    
-	    dont_if_start_list = ['     gene','ORIGIN','     misc_feature','     repeat_region','     mat_peptide','     sig_peptide']
-	    for dont_start in dont_if_start_list:
-		if line.startswith(dont_start):	
+	    if line.startswith('     CDS'):
+		flag = True
+		count += 1
+	    if flag:
+		if line.startswith('     CDS') or (not line.split('                     ')[0]):
+		    if count == 1:
+			one_cd_information += line
+		    else:
+			all_cds_information.append(one_cd_information)
+			one_cd_information = ''
+			one_cd_information += line
+			count = 1
+		else:
 		    flag = False
-		    if len(one_cd_information): all_cds_information.append(one_cd_information)
+		    if len(one_cd_information):all_cds_information.append(one_cd_information)
 		    one_cd_information = ''
+		    count = 0
+
+	    #dont_if_start_list = ['     gene','ORIGIN','     misc_feature','     repeat_region','     mat_peptide','     sig_peptide', '     RBS']
+	    #for dont_start in dont_if_start_list:
+		#if line.startswith(dont_start):	
+		    #flag = False
+		    #if len(one_cd_information): all_cds_information.append(one_cd_information)
+		    #one_cd_information = ''
 		    
-	    if flag: one_cd_information += line
+	    #if flag: one_cd_information += line
 	    
 	
 	all_cds_information.pop(0)	#The first item is an empty list. Has to be popped out
@@ -444,6 +466,12 @@ def run_gbk():
 	    count += 1
 	    destination_file_path = gbk.write_file('orthomcl_complaint')
 	    destination_file_paths.append(destination_file_path)
+ 
+    #path = '/home/jaggu/databases/All Bacterial Genomes/Chlamydophila_abortus_S26_3/NC_004552.gbk'
+    #gbk = Gbk_file(path)
+    #information = gbk.organism_information()
+    #cds_information = gbk.cds_information()
+    
     
     print "Number of organims : %d"%(count)
     return destination_file_paths
@@ -486,7 +514,7 @@ def separate_list(name_file,file_paths, number_parts = 8):
 if __name__ == '__main__':
 
     # Calling database using MySQLdb module
-    conn = sqlite3.connect('orthomcl_genomes_1.db')
+    conn = sqlite3.connect('all_orgs.db')
     cursor = conn.cursor()
    
     destination_file_paths = run_gbk()

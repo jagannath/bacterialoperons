@@ -42,3 +42,26 @@ WHERE rank =
 FROM coding_sequences
 WHERE sequence_id = 'NC_000913|b0010')+1 
 AND accession_number = 'NC_000913'
+
+SELECT ecoli_gene_operonset.operon_name, c.locus_tag, c.sequence_length, c.rank, c.orientation, c.left_end, c.right_end, g.cluster_accession, g.protein_name
+FROM 
+(SELECT sequence_id, sequence_length, rank, locus_tag, gene_id, orientation, left_end, right_end
+FROM coding_sequences
+WHERE accession_number = 'NC_000913') c
+INNER JOIN ecoli_gene_operonset
+ON c.locus_tag = ecoli_gene_operonset.b_number
+INNER JOIN protein_clusters g
+ON c.locus_tag = g.locus_tag
+
+SELECT locus_tag, rank, orientation, left_end, right_end, sequence_length, accession_number, taxon_id
+FROM coding_sequences;
+
+SELECT coding_sequences.locus_tag, protein_clusters.cluster_accession
+FROM protein_clusters
+INNER JOIN coding_sequences
+ON protein_clusters.locus_tag = coding_sequences.locus_tag
+WHERE protein_clusters.cluster_accession = 'PRK13564'
+
+SELECT locus_tag, rank, orientation, left_end, right_end, accession_number
+FROM coding_sequences
+WHERE accession_number = 'NC_009801' AND rank = 1390

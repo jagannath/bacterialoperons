@@ -25,9 +25,9 @@ INNER JOIN ecoli_gene_operonset
 ON c.locus_tag = ecoli_gene_operonset.b_number
 INTO OUTFILE 'test.txt'
 
-SELECT ecoli_gene_operonset.operon_name, c.sequence_id, c.rank, c.gene_id, c.orientation, c.left_end, c.right_end, groups.group_id
+SELECT ecoli_gene_operonset.operon_name, c.sequence_id, c.sequence_length, c.rank, c.gene_id, c.orientation, c.left_end, c.right_end, groups.group_id
 FROM 
-(SELECT sequence_id, rank, locus_tag, gene_id, orientation, left_end, right_end
+(SELECT sequence_id, sequence_length, rank, locus_tag, gene_id, orientation, left_end, right_end
 FROM coding_sequences
 WHERE accession_number = 'NC_000913') c
 INNER JOIN ecoli_gene_operonset
@@ -42,3 +42,14 @@ WHERE rank =
 FROM coding_sequences
 WHERE sequence_id = 'NC_000913|b0010')+1 
 AND accession_number = 'NC_000913'
+
+SELECT ecoli_gene_operonset.operon_name, c.locus_tag, c.sequence_length, c.rank, c.orientation, c.left_end, c.right_end, g.cluster_accession, g.protein_name
+FROM 
+(SELECT sequence_id, sequence_length, rank, locus_tag, gene_id, orientation, left_end, right_end
+FROM coding_sequences
+WHERE accession_number = 'NC_000913') c
+INNER JOIN ecoli_gene_operonset
+ON c.locus_tag = ecoli_gene_operonset.b_number
+INNER JOIN protein_clusters g
+ON c.locus_tag = g.locus_tag
+

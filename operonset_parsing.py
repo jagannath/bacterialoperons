@@ -21,10 +21,12 @@ user_name = 'jaggusql'
 password = 'ishani'
 
 # Calling database using MySQLdb module
-conn = MySQLdb.connect(host = "localhost",
-user = user_name,
-passwd = password,
-db = database)
+#conn = MySQLdb.connect(host = "localhost",
+#user = user_name,
+#passwd = password,
+#db = database)
+conn = sqlite3.connect('all_orgs.db')
+
 cursor = conn.cursor()
 
 def open_file(file_name,open_status = 'r'):

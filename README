@@ -7,6 +7,8 @@ Step 1: Parsing the gbk files.
 Step 2: Ecogenedata and operonset_parsing.
 	ecogene_data_parsing.py
 	operonset_parsing.py
+	parsing_blast_results.py
+	This parses the enormous all vs all blast results into a single file - goodproteins.blast which will be used by orthomcl
 	This updates the database orthomcl266 with tables detailing the ecoli genes, its presence in operons, description etc. The operonset.txt was downloaded from EcoCyc and the other ecogenedata from ecogene. This too needs mysql 
 	access and thus needs to be run on noether.  
 Step 3: Orthomcl
