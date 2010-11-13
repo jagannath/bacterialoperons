@@ -322,28 +322,6 @@ def get_ecoli_genes(query_operon):
 	    group_order.append(group_id)
 	    
     return ecoli_genes_information, group_order, orientation_status
-		
-#def sequence_group_dictionary():
-    #""" This function creates a dictionary of sequence_id and group_id with sequence_id (key): group_id (value). The details are taken from the groups.txt file created by orthomcl. 
-    #Returns: sequenceid_group_dictionary
-    #"""
-    ##Initializing
-    #group_dictionary = {}
-    #split_line = line = sequence_id = sequence = ''
-    
-    #ifile = open_file('groups.txt')
-    #lines = ifile.readlines()
-    #ifile.close()
-    
-    #for line in lines:
-	#split_line = line.split(' ')	#Space is all that separates the different sequenceids
-	#group_name = (split_line.pop(0))[:-1]	#It has a ':' in the end
-	
-	#for sequence in split_line:
-	    #sequence_id = sequence.replace('\n','')	#Some seq id has this annoying carriage return
-	    #group_dictionary[sequence_id] = group_name
-	    
-    #return group_dictionary
 			    
 def prob_group_order(groups, operon,group_dictionary):
     """

@@ -244,14 +244,6 @@ class Gbk_file:
 		    one_cd_information = ''
 		    count = 0
 
-	    #dont_if_start_list = ['     gene','ORIGIN','     misc_feature','     repeat_region','     mat_peptide','     sig_peptide', '     RBS']
-	    #for dont_start in dont_if_start_list:
-		#if line.startswith(dont_start):	
-		    #flag = False
-		    #if len(one_cd_information): all_cds_information.append(one_cd_information)
-		    #one_cd_information = ''
-		    
-	    #if flag: one_cd_information += line
 	    
 	
 	all_cds_information.pop(0)	#The first item is an empty list. Has to be popped out
@@ -259,7 +251,8 @@ class Gbk_file:
 	#Parsing each CDS for protein and sequence information
 	
 	self.all_cds_identifiers = self.parse_cds(all_cds_information)
-	    
+	
+	
 	return self.all_cds_identifiers
 
     def update_organisms_tables(self,table_name1, table_name2):
@@ -293,12 +286,15 @@ class Gbk_file:
 	organism_information = self.organism_information
 	[accession_number, organism_definition, taxonomic_order,taxon_id, genome_size, genome_type] = organism_information
 	
+	nbr_cds = self.number_cds()
+	
 	insert_table ="""
 	INSERT INTO %s
-	(accession_number, organism_definition, taxonomic_order, taxon_id, genome_size, genome_type)
+	(accession_number, organism_definition, taxonomic_order, taxon_id, genome_size, number_genes, genome_type)
 	VALUES
-	('%s','%s','%s','%s','%s', '%s')
-	"""%(table_name2,accession_number, organism_definition, taxonomic_order, taxon_id, genome_size, genome_type)
+	('%s','%s','%s','%s','%s', '%s','%s')
+	"""%(table_name2,accession_number, organism_definition, taxonomic_order, taxon_id, genome_size, nbr_cds, genome_type)
+
 	try:
 	    cursor.execute(insert_table)
 	except:
@@ -434,6 +430,7 @@ def create_tables(table1, table2):
 	    taxonomic_order MEDIUMTEXT, 
 	    taxon_id INT,
 	    genome_size INT,
+	    number_genes INT,
 	    genome_type VARCHAR (15)
 	    )
 	    '''
@@ -514,7 +511,7 @@ def separate_list(name_file,file_paths, number_parts = 8):
 if __name__ == '__main__':
 
     # Calling database using MySQLdb module
-    conn = sqlite3.connect('all_orgs.db')
+    conn = sqlite3.connect('trial_all_orgs.db')
     cursor = conn.cursor()
    
     destination_file_paths = run_gbk()

@@ -25,7 +25,7 @@ password = 'ishani'
 #user = user_name,
 #passwd = password,
 #db = database)
-conn = sqlite3.connect('all_orgs.db')
+conn = sqlite3.connect('trial_all_orgs.db')
 
 cursor = conn.cursor()
 

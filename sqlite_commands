@@ -57,11 +57,37 @@ SELECT locus_tag, rank, orientation, left_end, right_end, sequence_length, acces
 FROM coding_sequences;
 
 SELECT coding_sequences.locus_tag, protein_clusters.cluster_accession
-FROM protein_clusters
-INNER JOIN coding_sequences
+FROM coding_sequences
+LEFT OUTER JOIN protein_clusters
 ON protein_clusters.locus_tag = coding_sequences.locus_tag
+WHERE coding_sequences.accession_number = 'NC_000913'
 WHERE protein_clusters.cluster_accession = 'PRK13564'
 
 SELECT locus_tag, rank, orientation, left_end, right_end, accession_number
 FROM coding_sequences
 WHERE accession_number = 'NC_009801' AND rank = 1390
+
+SELECT e.b_number, p.cluster_accession
+FROM ecoli_gene_operonset e
+INNER JOIN protein_clusters p
+WHERE e.b_number = p.locus_tag
+AND e.number_genes_operon > 1
+
+SELECT COUNT(*)
+FROM ecogene_data c
+INNER JOIN protein_clusters p
+ON c.b_number = p.locus_tag
+INNER JOIN ecoli_gene_operonset eo
+ON c.b_number = eo.b_number
+ORDER BY eo.operon_name
+
+SELECT COUNT(*)
+FROM ecogene_data e
+INNER JOIN ecoli_gene_operonset eo
+ON e.b_number = eo.b_number
+INNER JOIN protein_clusters p
+ON e.b_number = p.locus_tag
+
+SELECT locus_tag, rank, orientation, left_end, right_end, accession_number
+FROM coding_sequences
+WHERE accession_number = 'NC_012850' AND rank = 4565
