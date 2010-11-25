@@ -1,15 +1,16 @@
 #! usr/bin/env python
 # Script file to parse the gbk files (a newer modified version of the older file parsinggbk.py. 
 # It will make room to incorporate other identifiers and better creation and updating of table. 
+# Update - 24th Nov 2010 : It now has a function within the Gbk_file class that parses the complete DNA sequence information
 
+from __future__ import division	#This must be used whenever division is used. Returns back a proper float
 import os
 import sys
 import sqlite3
 from warnings import filterwarnings
 import timeit
 import re
-
-
+import string 	#Used in the function obtain_complete_dna_sequence()
 
 class Gbk_file:
     """ This class aims to do the entire parsing of the gbk file. It is separated into functions - (1) Retrieve the organisms information (2) Retrieve each sequence_information (3) Populate a sequence_information coding_sequences table (4) Populate the organisms information table
@@ -47,7 +48,7 @@ class Gbk_file:
 	    pass
 	    
 	return new_dir_path
-	    
+ 	    
     
     def parse_position_gene(self,position_gene):
 	""" This function (created adhoc) will parse the position_gene (with four possibilities - (a) simple one - forward (b) simple one - reverse --complement(..) (c) join - forward --join(..) or (d) complement(join(..,..)) - reverse. It will return 4 variables (a) joined (yes or no) (b) orientation (forward or reverse) (c) left_end and (d) right_end. In forward : left_end < right_end and in reverse : left_end > right_end
@@ -255,6 +256,42 @@ class Gbk_file:
 	
 	return self.all_cds_identifiers
 
+    def obtain_complete_dna_sequence(self):
+	"""
+	@function: Parses the gbk file to retrieve the entire DNA sequence information. This information is present at the end of the file. It starts with ORIGIN and the next line onwards it is the dna sequence. There are numbers at the start of the line which will be removed and so will the carriage return character. 
+	Finally the word ORIGIN will be remove and the dna sequence will be sent back in lower case
+	@return dna_sequence: (1)The entire dna sequence of the organism (2) The g+c content (as percentage)
+	"""
+	
+	#Initializing
+	flag = False
+	all_sequences = ''
+	temp_sequences = ''
+	
+	ifile = self.open_file(self.file_name)
+	lines = ifile.readlines()
+	ifile.close()
+	
+	for line in lines:
+	    if line.startswith('ORIGIN'):
+		flag = True
+	    if flag:
+		temp_sequences += line
+	    if line.startswith('//'):
+		flag = False
+	
+	# Removing the word ORIGIN,all carriage return characters and all spaces
+	temp_sequences = (temp_sequences.replace('ORIGIN','')).replace('\n','')
+	temp_sequences = temp_sequences.replace(' ','')
+	all_sequences = re.sub('[%s]'%(string.digits+string.whitespace),'',temp_sequences)
+	
+	gc_content = ((all_sequences.count('g') + all_sequences.count('c')) / (len(all_sequences))) * 100
+	
+	[self.all_sequences, self.gc_content] = [all_sequences, gc_content]
+	return [all_sequences,gc_content]
+	
+
+
     def update_organisms_tables(self,table_name1, table_name2):
 	""" This function updates the organisms table already created in the main function. It updates two tables - (1) coding_sequences table with the information of all the genes, their positions etc (2) organisms with the information about the organism, its accession number, taxon_id, taxon_details (and if later - the genome sequence)
 	"""
@@ -356,7 +393,42 @@ class Gbk_file:
 	    os.chdir(self.cwd)
 	
 	return destination_file_path
-		    
+
+    def write_dna_sequence(self):
+	"""
+	@function: This creates a file accession_number.dnaseq in the accession_number directory (where the other parsed information is present).The file format is like that of fasta with the first line telling the accession_number, organism_definition, taxon_id, genome_size, gc_content and genome type. The next line will be the sequences
+	@return destination_file_path
+	"""
+	
+	#Initializing
+
+	# Information about the organism
+	organism_information = self.organism_information
+	[accession_number, organism_definition, taxonomic_order,taxon_id, genome_size, genome_type] = organism_information
+	# Information of the sequence
+	all_sequences = self.all_sequences
+	gc_content = self.gc_content
+	information_to_write = [accession_number, organism_definition, taxon_id, genome_size, gc_content, genome_type]
+
+	dir_path = self.make_dir('parsed_gbk_files_genomes')
+	new_dir_path = self.make_dir(accession_number,dir_path)
+	os.chdir(new_dir_path)
+	#filename
+	dna_seq_file_name = accession_number + '.dnaseq'
+	
+	ofile = self.open_file(dna_seq_file_name,'w')
+	
+	written_content = '>' + '|'.join('%s'%(item) for item in information_to_write) + '\n' + all_sequences
+	ofile.write(written_content)
+	
+	ofile.close()
+	
+	destination_file_path = new_dir_path + '/' + dna_seq_file_name
+	os.chdir(self.cwd)
+	
+	return destination_file_path
+	
+
     def number_cds(self):
 	""" This function just gives back the number of coding_sequences present in the genome. Attempt to do this by counting the length of the array list - all_cds_identifiers
 	"""
@@ -441,10 +513,14 @@ def create_tables(table1, table2):
     return
     
 
-def run_gbk():
+def run_gbk(argument):
     #Initializing
+    assert len(argument)==1
+    
     destination_file_paths = []
     count = 0
+    dna_sequence = ''
+    gc_content = 0
     
     table_name1 = 'coding_sequences'
     table_name2 = 'organisms'
@@ -452,24 +528,36 @@ def run_gbk():
 
     create_tables(table_name1, table_name2)
     
-    for path in all_created_paths:
-	gbk = Gbk_file(path)
-    	information = gbk.organism_information()
-	cds_information = gbk.cds_information()
-	table_status = gbk.update_organisms_tables(table_name1,table_name2)
-	number_cds = gbk.number_cds()
-	#write_status = gbk.write_file(cds_information)	#This will write only genome files and not plasmid ones. It will return alo the list of genome files only
-	if information[5] == 'complete_genome':
-	    count += 1
-	    destination_file_path = gbk.write_file('orthomcl_complaint')
-	    destination_file_paths.append(destination_file_path)
+    [argv] = argument
+    argv = int(argv)
+
+
+    if argv == 1:	#Argument for parsing only the coding_sequences
+	
+	for path in all_created_paths:
+	    gbk = Gbk_file(path)
+	    information = gbk.organism_information()
+	    cds_information = gbk.cds_information()
+	    table_status = gbk.update_organisms_tables(table_name1,table_name2)
+	    number_cds = gbk.number_cds()
+	    #write_status = gbk.write_file(cds_information)	#This will write only genome files and not plasmid ones. It will return alo the list of genome files only
+	    if information[5] == 'complete_genome':
+		count += 1
+		destination_file_path = gbk.write_file('orthomcl_complaint')
+		destination_file_paths.append(destination_file_path)
  
-    #path = '/home/jaggu/databases/All Bacterial Genomes/Chlamydophila_abortus_S26_3/NC_004552.gbk'
-    #gbk = Gbk_file(path)
-    #information = gbk.organism_information()
-    #cds_information = gbk.cds_information()
-    
-    
+    if argv == 2:	#Argument for parsing only the complete dna sequence
+	
+	for path in all_created_paths:
+	    gbk = Gbk_file(path)
+	    information = gbk.organism_information()
+	    [dna_sequence, gc_content] = gbk.obtain_complete_dna_sequence()
+	    if information[5] == 'complete_genome':
+		count += 1
+		destination_file_path = gbk.write_dna_sequence()
+		destination_file_paths.append(destination_file_path)
+
+	
     print "Number of organims : %d"%(count)
     return destination_file_paths
     
@@ -511,12 +599,14 @@ def separate_list(name_file,file_paths, number_parts = 8):
 if __name__ == '__main__':
 
     # Calling database using MySQLdb module
-    conn = sqlite3.connect('trial_all_orgs.db')
+    conn = sqlite3.connect('foo.db')
     cursor = conn.cursor()
    
-    destination_file_paths = run_gbk()
+    destination_file_paths = run_gbk(sys.argv[1:])
     
-    separate_list('created_fasta',destination_file_paths,6)
+
+    
+    #separate_list('created_fasta',destination_file_paths,6)
     
     from timeit import Timer
     t = Timer(stmt = "run_gbk()",setup = "from __main__ import run_gbk",)
