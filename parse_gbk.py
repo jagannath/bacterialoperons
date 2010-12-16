@@ -22,6 +22,7 @@ class Gbk_file:
 	self.organism_accession_number = file_name_split[len(file_name_split)-1]
 	self.cwd = os.getcwd()
 
+
     def open_file(self,name_file, open_status = 'r'):
 	""" This function just opens the file for reading and returns back the file handle for the file. If the file cannot be opened it just exits! It can open and read any type of files. It can also return back the file handle for writing. The default status for opening is to read the file. Note that the file handle is and must be closed in the place from where this function was called """
 
@@ -123,7 +124,7 @@ class Gbk_file:
 		    
 		if (identifier.find('gene=')>-1):
 		    genename = identifier[6:-1]
-		else: genename = 'None'
+
 		if (identifier.find('protein_id')>-1):
 		    protein_id = identifier[12:-1]
 		if (identifier.find('codon_start')>-1):
@@ -146,7 +147,12 @@ class Gbk_file:
 	    accession_number, taxon_id = self.organism_information[0], self.organism_information[3]
 	    sequence_id = accession_number + '|' + locus_tag
 	    
-	    cds_identifiers = [gene_id, locus_tag, protein_id, sequence_id, rank, joined, orientation, left_end, right_end, sequence, sequence_length, accession_number, taxon_id]
+	    #cds_identifiers = [gene_id, locus_tag, protein_id, sequence_id, rank, joined, orientation, left_end, right_end, sequence, sequence_length, accession_number, taxon_id]
+	    
+	    # This is temperory - only for retrieving the genename also in the cds_identifiers. I need it for B.subtilis database operon parsing. Called by file bsub_operon_parsing.py which needs this extra information. 
+	    cds_identifiers = [gene_id, locus_tag, genename, protein_id, sequence_id, rank, joined, orientation, left_end, right_end, sequence, sequence_length, accession_number, taxon_id]
+	    
+	    
 	    all_cds_identifiers.append(cds_identifiers)
 	
 	return all_cds_identifiers
@@ -556,6 +562,7 @@ def run_gbk(argument):
 		count += 1
 		destination_file_path = gbk.write_dna_sequence()
 		destination_file_paths.append(destination_file_path)
+
 
 	
     print "Number of organims : %d"%(count)

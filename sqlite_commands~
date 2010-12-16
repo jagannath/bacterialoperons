@@ -87,3 +87,7 @@ INNER JOIN ecoli_gene_operonset eo
 ON e.b_number = eo.b_number
 INNER JOIN protein_clusters p
 ON e.b_number = p.locus_tag
+
+SELECT locus_tag, rank, orientation, left_end, right_end, accession_number
+FROM coding_sequences
+WHERE accession_number = 'NC_012850' AND rank = 4565
