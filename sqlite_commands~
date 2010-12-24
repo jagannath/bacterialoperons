@@ -91,3 +91,33 @@ ON e.b_number = p.locus_tag
 SELECT locus_tag, rank, orientation, left_end, right_end, accession_number
 FROM coding_sequences
 WHERE accession_number = 'NC_012850' AND rank = 4565
+
+# Joining bsub : gene_id etc -> operon_name -> group_cluster
+SELECT bsub_gene_operonset.operon_name, c.locus_tag, c.sequence_length, c.rank, c.orientation, c.left_end, c.right_end, g.cluster_accession, g.protein_name
+FROM 
+(SELECT sequence_id, sequence_length, gene_name, rank, locus_tag, gene_id, orientation, left_end, right_end
+FROM bsub_coding_sequences
+) c
+INNER JOIN bsub_gene_operonset
+ON c.gene_name = bsub_gene_operonset.gene_name
+INNER JOIN protein_clusters g
+ON c.locus_tag = g.locus_tag
+
+SELECT bsub_gene_operonset.operon_name, c.locus_tag, c.sequence_length, c.rank, c.orientation, c.left_end, c.right_end
+FROM 
+(SELECT sequence_id, sequence_length, gene_name, rank, locus_tag, gene_id, orientation, left_end, right_end
+FROM bsub_coding_sequences
+) c
+INNER JOIN bsub_gene_operonset
+ON c.gene_name = bsub_gene_operonset.gene_name
+
+# Joining bsub (of DOOR) locus_tag -> coding_sequences -> group_id
+SELECT bsub_locus_operonset_door.operon_name, c.locus_tag, c.sequence_length, c.rank, c.orientation, c.left_end, c.right_end, g.cluster_accession, g.protein_name
+FROM 
+(SELECT sequence_id, sequence_length, gene_name, rank, locus_tag, gene_id, orientation, left_end, right_end
+FROM bsub_coding_sequences
+) c
+INNER JOIN bsub_locus_operonset_door
+ON c.locus_tag = bsub_locus_operonset_door.locus_tag
+INNER JOIN protein_clusters g
+ON c.locus_tag = g.locus_tag

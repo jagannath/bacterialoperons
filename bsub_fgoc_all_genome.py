@@ -338,7 +338,6 @@ def get_operons(file_name):
     @function: It parses the file to generate a non redundant list of all operons. 
     @return: List of all operons (non-redundant)
     """
-    
     ifile = open_file(file_name)
     lines = ifile.readlines()
     ifile.close()
@@ -359,8 +358,10 @@ def get_bsub_genes(query_operon):
     #Initializing
     bsub_genes_information = []
     group_order = []
+    orientation_status = ''
     
     ifile = open_file('bsub_data.txt')
+    #ifile = open_file('bsub_data_door.txt')
     lines = ifile.readlines()
     ifile.close()
 
@@ -369,6 +370,7 @@ def get_bsub_genes(query_operon):
 	    split_line = line.split('\t')
 	    [locus_tag, rank, orientation, left_end, right_end, group_id] = split_line[1], split_line[3], split_line[4], split_line[5], split_line[6], split_line[7]
 	    orientation_status = orientation
+	    
 	    bsub_genes_information.append([locus_tag, rank, orientation, left_end, right_end, group_id])
 	    group_order.append(group_id)
 	    
@@ -412,7 +414,7 @@ def compute_within_operon_walks(operon,cluster_dictionary,out_file_name):
     total_conserved_gene_pairs = 0
     nbr_group_pairs = 0
   
-    
+    print out_file_name
     # (1) Get all genes in the particular operon. genes - information of the gene
     genes, group_order, orientation_status = get_bsub_genes(operon)
     
@@ -440,7 +442,7 @@ def compute_within_operon_walks(operon,cluster_dictionary,out_file_name):
 	    fgoc_score = number_conserved_gene_pair / (number_conserved_gene_pair + number_non_adjacent_gene_pairs)
 	    
 	    # (7) Writing the information to the file. 
-	    information_for_file = '\t'.join(item for item in [operon, str(genes), str(walk_number), str(fgoc_score), str(number_conserved_gene_pair), str(number_non_adjacent_gene_pairs), str(gene_a_occurrences), str(gene_b_occurrences), str(difference_details), str(non_adjacent_gene_pairs),'\n'])
+	    information_for_file = '\t'.join(item for item in [operon, str(pair), str(walk_number), str(fgoc_score), str(number_conserved_gene_pair), str(number_non_adjacent_gene_pairs), str(gene_a_occurrences), str(gene_b_occurrences), str(difference_details), str(non_adjacent_gene_pairs),'\n'])
 	    
 	    walk_number += 1
 
@@ -455,26 +457,25 @@ def compute_within_operon_walks(operon,cluster_dictionary,out_file_name):
     return True
 
 
-def main():
+def main(arg):
     
     #(1) Get a key:value dictionary of all the clusters. 
     cluster_dictionary = get_cluster_locus_tag_dictionary()
-    
+
     #(2) Obtain a list of all operons (non-redundant) from bsub_data.txt
-    file_name = 'bsub_data.txt'
+    file_name = 'bsub_data_door.txt'	#For the file parsed from DOOR
     operon_list = get_operons(file_name)
-    
+
     #(3) Make an output file. If it already exists delete it. 
-    out_file_name = 'walk_in_bsub_operons.txt'
+    #out_file_name = 'walk_in_bsub_operons.txt'
+    out_file_name = 'walk_in_bsub_operons_door.txt'	#Changing output for the DOOR operon
     if os.path.exists(out_file_name):
 	os.remove(out_file_name)        
-    
+
     #(4) Within operon walks. Iterates over the operon list. Computes the FGOC score for each walk within the operon and returns details of all adjacent genes, the genes that weren't adjacent but in the same organism and would be adjacent genes. 
     for operon in operon_list:
 	print "Processing operon : %s"%(operon)
 	compute_within_operon_walks(operon,cluster_dictionary,out_file_name)
-
-
 
 
 if __name__ == '__main__':
@@ -482,12 +483,12 @@ if __name__ == '__main__':
     conn = sqlite3.connect('trial_all_orgs.db')
     cursor = conn.cursor()
     
-    main()
+    main(sys.argv[1:])
     
     cursor.close()
     conn.commit()
     conn.close()
     
     import time
-    print "Script - bsub_fgoc_all_genome.py %s \t Completed \t %s"%(main, time.strftime("%d %b %Y %H:%M:%S",time.localtime()))
+    print "Script - bsub_fgoc_all_genome.py \t Completed \t %s"%(time.strftime("%d %b %Y %H:%M:%S",time.localtime()))
 

@@ -197,9 +197,7 @@ def main():
     #(4) Parse file - NC_000964.gbk; This is the genbank file in database directory under Bacillus subtilis. It contains all the identifiers including gene name
     cds_information = parse_bsub_gbk()
     
-    #(5) Open a new sqlite3 db - bsub.db; 
-    
-    #(6) Create and update tables - 
+    #(5) Create and update tables - 
     # (a) bsub_gene_operonset = gene_name : operon pair 
     table_gene_operon(gene_operon_list)
     # (b) bsub_coding_sequences

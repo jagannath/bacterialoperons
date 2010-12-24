@@ -293,7 +293,8 @@ def get_ecoli_genes(query_operon):
     ecoli_genes_information = []
     group_order = []
     
-    ifile = open_file('ecoli_cluster.txt')
+    #ifile = open_file('ecoli_cluster.txt')
+    ifile = open_file('bsub_data.txt')
     lines = ifile.readlines()
     ifile.close()
 
@@ -353,16 +354,27 @@ def prob_group_order(groups, operon,group_dictionary):
 	print "# Non adjacent gene pairs \t %d"%(number_non_adjacent_gene_pairs)
 	print "# Total possible adjacent genes \t %d"%(number_total_groups)
 
-	information_for_file = '\t'.join(item for item in [operon, str(walk_number), str(number_conserved_gene_pair),str(number_total_groups), str(gene_a_occurrences), str(gene_b_occurrences), str(difference_details), str(non_adjacent_gene_pairs),'\n'])
+	
+	fgoc_score = number_conserved_gene_pair / (number_conserved_gene_pair + number_non_adjacent_gene_pairs)
+
+	#information_for_file = '\t'.join(item for item in [operon, str(walk_number), str(number_conserved_gene_pair),str(number_total_groups), str(gene_a_occurrences), str(gene_b_occurrences), str(difference_details), str(non_adjacent_gene_pairs),'\n'])
 	#eval(string) will convert the string into a list
+	# Done for B.subtilis operon (but nothing special)
+	information_for_file = '\t'.join(item for item in [operon, str(group_pairs), str(walk_number), str(fgoc_score), str(number_conserved_gene_pair), str(number_non_adjacent_gene_pairs), str(gene_a_occurrences), str(gene_b_occurrences), str(difference_details), str(non_adjacent_gene_pairs),'\n'])
+	
+	
+	
 	
 	walk_number += 1
 	
 	# Appending information to file - operon_walk_gene_pairs.txt
-	ifile = open_file('walk_in_trp_operon.txt','a')
-	ifile.write(information_for_file)
+	ofile = open_file('walk_in_trp_operon_bsub.txt','a')
+	ofile.write(information_for_file)
 
-    ifile.close()
+    # Keeping a delimiter for every operon.
+    ofile.write('/// \n')
+    ofile.close()
+
     return total_conserved_gene_pairs, number_total_groups
     
 def operon_walks(operon, group_dictionary):
@@ -386,7 +398,6 @@ def operon_walks(operon, group_dictionary):
 	group_order.reverse()
 	
     permutation_list = list(itertools.permutations(group_order))
-
 
     for one_order in permutation_list:
 	try:
@@ -430,7 +441,7 @@ if __name__ == '__main__':
     conn = sqlite3.connect('trial_all_orgs.db')
     cursor = conn.cursor()
     
-    operon = 'trpLEDCBA'
+    operon = 'trpEDCFBA-hisC-tyrA-aroE'
     cluster_dictionary = get_cluster_locus_tag_dictionary()
     operon_walks(operon,cluster_dictionary)
     #between_operon_walks(cluster_dictionary)
