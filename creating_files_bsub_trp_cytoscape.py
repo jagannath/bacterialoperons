@@ -27,9 +27,9 @@ def main(argument):
 	group_pair_eval = eval(group_pair)
 	grp_a, grp_b = group_pair_eval[0],group_pair_eval[1]
 	ofile1 = open('trp_bsub.sif','a')
-	ofile1.write(grp_a + '\t' + '(pp)' + '\t' + grp_b + '\n')
+	ofile1.write(grp_a + '\t' + '(ab)' + '\t' + grp_b + '\n')
 	ofile2 = open('trp_bsub.attredges','a')
-	ofile2.write(grp_a + ' ' + '(pp)' + ' ' + grp_b + ' ' + ' = ' + ' ' + fgoc + '\n')
+	ofile2.write(grp_a + ' ' + '(ab)' + ' ' + grp_b + ' ' + ' = ' + ' ' + fgoc + '\n')
 	print fgoc
 
     ofile1.close()

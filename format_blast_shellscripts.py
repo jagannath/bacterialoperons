@@ -53,6 +53,15 @@ def shell_format_database(file_paths,number):
     
     for path in file_paths:
 	dir_path, fasta_file = os.path.split(path)
+	files_toremove1 = path + '.phr'
+	files_toremove2 = path + '.pin'
+	files_toremove3 = path + '.psq'
+	try:
+	    os.remove(files_toremove1)
+	    os.remove(files_toremove2)
+	    os.remove(files_toremove3)
+	except OSError:
+	    pass
 	log_file = dir_path + '/' + fasta_file[:-5] + 'log'
 	input_file = path
 	command_line = 'formatdb -i ' + input_file + ' -oF ' + '-pT -l ' + log_file + '\n'
@@ -121,19 +130,21 @@ if __name__ == '__main__':
     cwd = os.getcwd()
     #list_file = 'created_fasta_%s.lst'%(str(number))
     number_paths, paths,ecoli_ref_path = get_list_fasta()
-    #shell_format_database(paths,number)
-    number_organisms = 200	
-    shorter_list = paths[0:100]	#The first 200 organisms
+    print paths
+    number = 5
+    shell_format_database(paths,number)
+    #number_organisms = 200	
+    #shorter_list = paths[0:100]	#The first 200 organisms
     #Will just generate a single blastall_#.sh file which will contain all the combinations of the shorter_list
     # Check if it contains the ecoli_ref. If not appends it to the list
-    if ecoli_ref_path in shorter_list:
-	pass
-    else:
-	shorter_list.append(ecoli_ref_path)
+    #if ecoli_ref_path in shorter_list:
+	#pass
+    #else:
+	#shorter_list.append(ecoli_ref_path)
     
     
-    number = 1
-    blast_all_script(shorter_list,number)
+    #number = 1
+    #blast_all_script(shorter_list,number)
     
     print "completed"
 	

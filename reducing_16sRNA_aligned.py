@@ -42,10 +42,7 @@ def main(argument):
 	
     return True
 
-
-
 if __name__ == '__main__':
-    # Calling database using sqlite module
     
     main(sys.argv[1:])
     

@@ -19,32 +19,30 @@ def open_file(name_file, open_status = 'r'):
 
 if __name__ == '__main__':
     
-    ifile = open_file('bsub_data.txt')
+    ifile = open_file('ecoli_homolog_data.txt')
     lines = ifile.readlines()
     ifile.close()
     
-    #all_operon_list =([line.split('\t')[0] for line in lines]) 
-    #operon_list = set(all_operon_list)
-    #print len(operon_list)
+    all_operon_list =([line.split('\t')[0] for line in lines]) 
+    operon_list = set(all_operon_list)
+    print len(operon_list)
     count = 0
     i = 0
     j=0
     
     # For sh_genome_fgoc. Iteration through all organisms calling gen_fgoc_calc.py
-    path = os.getcwd() + '/parsed_gbk_files_genomes'
-    all_acc_nbrs = os.listdir(path)
+    #path = os.getcwd() + '/parsed_gbk_files_genomes'
+    #all_acc_nbrs = os.listdir(path)
    
-    
-    
-    
-    for operon in all_acc_nbrs:
+
+    for operon in all_operon_list:
 	#if all_operon_list.count(operon)>1 :
 	j+=1
 	i+=1
 	dir_path = os.getcwd() + '/sh_files/'
-	file_name = dir_path + 'gen_fgoc_ref_ecoli_' + str(i) + '.sh'
+	file_name = dir_path + 'ecoli_homolog_shuffle' + str(i) + '.sh'
 	ofile = open_file(file_name,'a')
-	ofile.write("python gen_fgoc_calc.py %s \n"%(operon))
+	ofile.write("python operon_shuffling.py %s shuffle \n"%(operon))
 	if i == 6:
 	    i=0
 	

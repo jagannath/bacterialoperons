@@ -11,6 +11,14 @@ from warnings import filterwarnings
 import timeit
 import re
 import string 	#Used in the function obtain_complete_dna_sequence()
+import pickle
+import cPickle
+import pdb
+import shelve
+#pkl_dir = os.getcwd() + '/shelve_files/'
+#locus_cds_information_dictionary = shelve.open(pkl_dir + 'locus:cds_information_dictionary','c')
+#print locus_cds_information_dictionary
+
 
 class Gbk_file:
     """ This class aims to do the entire parsing of the gbk file. It is separated into functions - (1) Retrieve the organisms information (2) Retrieve each sequence_information (3) Populate a sequence_information coding_sequences table (4) Populate the organisms information table
@@ -147,10 +155,10 @@ class Gbk_file:
 	    accession_number, taxon_id = self.organism_information[0], self.organism_information[3]
 	    sequence_id = accession_number + '|' + locus_tag
 	    
-	    #cds_identifiers = [gene_id, locus_tag, protein_id, sequence_id, rank, joined, orientation, left_end, right_end, sequence, sequence_length, accession_number, taxon_id]
+	    cds_identifiers = [gene_id, locus_tag, protein_id, sequence_id, rank, joined, orientation, left_end, right_end, sequence, sequence_length, accession_number, taxon_id]
 	    
 	    # This is temperory - only for retrieving the genename also in the cds_identifiers. I need it for B.subtilis database operon parsing. Called by file bsub_operon_parsing.py which needs this extra information. 
-	    cds_identifiers = [gene_id, locus_tag, genename, protein_id, sequence_id, rank, joined, orientation, left_end, right_end, sequence, sequence_length, accession_number, taxon_id]
+	    #cds_identifiers = [gene_id, locus_tag, genename, protein_id, sequence_id, rank, joined, orientation, left_end, right_end, sequence, sequence_length, accession_number, taxon_id]
 	    
 	    
 	    all_cds_identifiers.append(cds_identifiers)
@@ -250,8 +258,6 @@ class Gbk_file:
 		    if len(one_cd_information):all_cds_information.append(one_cd_information)
 		    one_cd_information = ''
 		    count = 0
-
-	    
 	
 	all_cds_information.pop(0)	#The first item is an empty list. Has to be popped out
 	
@@ -319,10 +325,10 @@ class Gbk_file:
 	    VALUES
 	    ('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s')
 	    """%(table_name1, gene_id,locus_tag, protein_id,sequence_id, rank, joined, orientation, left_end, right_end,sequence, sequence_length, accession_number, taxon_id )
-	    try:
-		cursor.execute(insert_table)
-	    except:
-		print insert_table
+	    #try:
+		#cursor.execute(insert_table)
+	    #except:
+		#print insert_table
 	    
 	# Inserting details of table_name2 : organisms
 	
@@ -338,14 +344,14 @@ class Gbk_file:
 	('%s','%s','%s','%s','%s', '%s','%s')
 	"""%(table_name2,accession_number, organism_definition, taxonomic_order, taxon_id, genome_size, nbr_cds, genome_type)
 
-	try:
-	    cursor.execute(insert_table)
-	except:
-	    print insert_table
+	#try:
+	    #cursor.execute(insert_table)
+	#except:
+	    #print insert_table
 	
 	return "Completed"
 
-    def write_file(self,file_type = 'regular'):
+    def write_file(self,locus_info_dict, file_type = 'regular'):
 	""" This function writes a parsed file and can do it in two types - (a) Normal type where all the identifiers are written down as if in fasta format. 
 	(b) Orthomcl complaint where there is a sequence_id that is written followed by the sequence
 	"""
@@ -377,8 +383,8 @@ class Gbk_file:
 		
 	    ofile.close()
 	    destination_file_path = new_dir_path + '/' + complaint_file_name
-	    os.chdir(self.cwd)
 	    
+
 
 	if file_type == 'regular':
 	    parameters_required = [0,1,2,3,4,6,7,8,10,11]
@@ -474,7 +480,7 @@ def operate_table(table_name,contents,operation='insert'):
 	cursor.execute(""" DROP TABLE IF EXISTS %s """%table_name)	#This works well only when the warning sign is turned off
     else: 
 	pass 
-
+    
     cursor.execute(table_contents)
 
     return 
@@ -512,27 +518,55 @@ def create_tables(table1, table2):
 	    genome_type VARCHAR (15)
 	    )
 	    '''
-    
+
     operate_table(table1,contents1,'create')
     operate_table(table2,contents2,'create')
 
     return
     
+def make_cds_information_dict(locus_cds_information_dict,cds_information):
+    """
+    @param cds_information: This is a list of all cds information for the particular organism
+    cds_identifiers = [gene_id, locus_tag, protein_id, sequence_id, rank, joined, orientation, left_end, right_end, sequence, sequence_length, accession_number, taxon_id]
+    @function: Iterate through this list and make a locus_tag: []
+    """
+    locus_seq_dict = {}
+    
+    for cds in cds_information:
+	locus_tag, rank, orientation, left_end, right_end, accession_number = cds[1], int(cds[4][5:]), cds[6], cds[7], cds[8], cds[11]
+	sequence = cds[9]
+	try:
+	    locus_cds_information_dict[locus_tag] = [locus_tag, rank, orientation, left_end, right_end, accession_number]
+	    locus_seq_dict[locus_tag] = [locus_tag,sequence]
+	except:
+	    print locus_tag, rank, orientation, left_end, right_end, accession_number
+	
+	try:
+	    assert len(locus_cds_information_dict[locus_tag]) == 6
+	except AssertionError:
+	    print locus_cds_information_dict
+	    sys.exit()
+	
+    return locus_cds_information_dict,locus_seq_dict
 
 def run_gbk(argument):
     #Initializing
-    assert len(argument)==1
     
+   
+    assert len(argument)==1
+    locus_cds_information_dict = {}
     destination_file_paths = []
     count = 0
     dna_sequence = ''
     gc_content = 0
+    base_dir = '/project/marcotte/jagannath/projectfiles/bacterialoperons/'
+    
     
     table_name1 = 'coding_sequences'
     table_name2 = 'organisms'
     all_created_paths = open_list('all_filenames.lst')
 
-    create_tables(table_name1, table_name2)
+    #create_tables(table_name1, table_name2)
     
     [argv] = argument
     argv = int(argv)
@@ -540,16 +574,50 @@ def run_gbk(argument):
 
     if argv == 1:	#Argument for parsing only the coding_sequences
 	
+	
 	for path in all_created_paths:
+	    # Initializing
+	    locus_cds_information_dict = {}
+	    dir_path = base_dir + '/parsed_gbk_files_genomes/'
+	    out_path = ''
+	    
 	    gbk = Gbk_file(path)
 	    information = gbk.organism_information()
+	    org_nbr = information[0]
 	    cds_information = gbk.cds_information()
 	    table_status = gbk.update_organisms_tables(table_name1,table_name2)
 	    number_cds = gbk.number_cds()
+	    
+	    # Make a dictionary of the locus: cds information and locus: sequence. 
+	    locus_cds_information_dict,locus_sequence_dict = make_cds_information_dict(locus_cds_information_dict,cds_information)
+	    
+	    # Pickle the dictionary for locus:cds information
+	    out_path = dir_path + org_nbr 
+	    #print org_nbr
+	    pkl_name = out_path + '/' + org_nbr + '_locus_cds_information_dictionary.pkl'
+	    
+	    try:
+		ofile = open(pkl_name,'wb')
+	        pickle.dump(locus_cds_information_dict,ofile)
+	        ofile.close()
+	    except IOError: 	#This is checked. not advisable. I am doing this because i am not including plasmids as I havent made any directories
+		pass
+	    
+	    
+	    # Pickle the dictionary for locus:cds information
+	    pkl_name = out_path + '/' + org_nbr + '_locus_sequence_dictionary'
+	    try:
+		ofile = open(pkl_name,'wb')
+		pickle.dump(locus_sequence_dict,ofile)
+		ofile.close()
+	    except IOError:
+		pass
+	    print org_nbr
+	    
 	    #write_status = gbk.write_file(cds_information)	#This will write only genome files and not plasmid ones. It will return alo the list of genome files only
 	    if information[5] == 'complete_genome':
 		count += 1
-		destination_file_path = gbk.write_file('orthomcl_complaint')
+		destination_file_path = gbk.write_file(locus_cds_information_dict,'orthomcl_complaint')
 		destination_file_paths.append(destination_file_path)
  
     if argv == 2:	#Argument for parsing only the complete dna sequence
@@ -606,8 +674,8 @@ def separate_list(name_file,file_paths, number_parts = 8):
 if __name__ == '__main__':
 
     # Calling database using MySQLdb module
-    conn = sqlite3.connect('foo.db')
-    cursor = conn.cursor()
+    #conn = sqlite3.connect('trial_all_orgs.db')
+    #cursor = conn.cursor()
    
     destination_file_paths = run_gbk(sys.argv[1:])
     
@@ -619,6 +687,6 @@ if __name__ == '__main__':
     t = Timer(stmt = "run_gbk()",setup = "from __main__ import run_gbk",)
     print t.timeit(0)
 
-    cursor.close()
-    conn.commit()
-    conn.close()
+    #cursor.close()
+    #conn.commit()
+    #conn.close()

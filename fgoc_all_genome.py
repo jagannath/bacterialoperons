@@ -6,15 +6,51 @@ from __future__ import division
 import sys
 import sqlite3
 import os
+import pickle
+import cPickle
+import pdb
+import shelve
+pkl_dir = os.getcwd() + '/shelve_files/'
+cluster_dictionary = shelve.open(pkl_dir + 'ecoli_homolog_locus_tag:group_dictionary')
+group_all_locus_dictionary = shelve.open(pkl_dir + 'ecoli_homolog_group:all_locus_tag_dictionary')
+locus_cds_dictionary = shelve.open(pkl_dir + 'locus:cds_information_dictionary')
+#print group_all_locus_dictionary['ECHOM_b0005']
+#print locus_cds_dictionary['b0005']
+#print group_all_locus_dictionary['ECHOM_b0006']
+#print locus_cds_dictionary['b0006']
+
+#print "Unpickling Dictionaries"
+#pkl_file_name = pkl_dir + 'ecoli_homolog_locus_tag:group_dictionary.pkl'
+#ifile = open(pkl_file_name)
+#cluster_dictionary = cPickle.load(ifile)
+#ifile.close()
+#print "Done"
+
+#pkl_dir = os.getcwd() + '/pkl_files/'
+#pkl_file_name = pkl_dir + 'ecoli_homolog_group:all_locus_tag_dictionary.pkl'
+#ifile = open(pkl_file_name)
+#group_all_locus_dictionary = cPickle.load(ifile)
+#ifile.close()
+#print "Done"
+
+## Unpickle the gigantic locus_tag: cds_information picke file
+#pkl_file = pkl_dir + 'locus_tag_info_dictionary.pkl'
+#ifile = open(pkl_file)
+#locus_cds_dictionary = cPickle.load(ifile)
+#ifile.close()
+#print "Done"
+#print "Unpickling done"
 
 
 class Groups:
     """ Contains information about the group_order which is passed. Computes the number of conserved walks, list of all possible gene_pairs
     """
-    
-    def __init__(self, group_pair, group_dictionary):
+    # Shelves imported : cluster_dictionary,group_all_locus_dictionary,locus_cds_dictionary
+    def __init__(self, group_pair):
 	self.group_1, self.group_2 = group_pair[0], group_pair[1]
-	self.group_dictionary = group_dictionary
+	self.group_dictionary = cluster_dictionary
+	self.group_all_locus_dictionary = group_all_locus_dictionary
+	self.locus_cds_dictionary = locus_cds_dictionary
 		
     def open_file(self,name_file, open_status = 'r'):
 	""" This function just opens the file for reading and returns back the file handle for the file. If the file cannot be opened it just exits! It can open and read any type of files. It can also return back the file handle for writing. The default status for opening is to read the file. Note that the file handle is and must be closed in the place from where this function was called """
@@ -93,11 +129,11 @@ class Groups:
 	rank = ''
 	
 	search_command = '''
-	SELECT c.locus_tag, c.rank, c.orientation, c.left_end, c.right_end, c.accession_number, p.cluster_accession
-	FROM protein_clusters p
+	SELECT c.locus_tag, c.rank, c.orientation, c.left_end, c.right_end, c.accession_number, p.group_name
+	FROM ecoli_homolg_group p
 	INNER JOIN coding_sequences c
 	ON p.locus_tag = c.locus_tag
-	WHERE p.cluster_accession = '%s'
+	WHERE p.group_name = '%s'
 	'''%(group_name)
 	
 	cursor.execute(search_command)
@@ -161,6 +197,7 @@ class Groups:
 	group_b_members = self.group_b_members
 	rank_difference = 0
 	distance = 0
+
 	rank_a,orientation_a,left_end_a,right_end_a, acc_no_a = int(gene_a[1]), gene_a[2], int(gene_a[3]), int(gene_a[4]), gene_a[5]
 	rank_b,orientation_b,left_end_b,right_end_b, acc_no_b = int(gene_b[1]), gene_b[2], int(gene_b[3]), int(gene_b[4]), gene_b[5]
 	
@@ -247,6 +284,36 @@ class Groups:
 
 	return non_adjacent_gene_pairs, all_non_became_groups
 
+    def get_group_members(self,group):
+	"""
+	@param group: This is the name of the group
+	@function: Open pickle dictionary of group: [all locus_tag]; For each of the locus_tag obtain information. Append the information of the group_name to it as well. 
+	@return [[locus_tag, rank, orientation, left_end, right_end, accession_number, group_name],[..]..]
+	"""
+	# Initializing
+	all_cds_info = []
+	count = 0
+	# (1) Opens the pickle_dictionary of group:[all locus_tag]
+	try:
+	    all_locus_tag = self.group_all_locus_dictionary[group]
+	except KeyError:
+	    return all_cds_info
+	    
+	# (2) Iterate through each locus_tag and obtain the information from the locus_cds_dict
+	for locus in all_locus_tag:
+	    cds_info = self.locus_cds_dictionary[locus]
+	    cds_info.append(group)
+	    if len(cds_info) == 7:
+		all_cds_info.append(cds_info)
+	    else:
+		print all_locus_tag
+		print locus
+		sys.exit(1)
+		count+=1
+
+	return all_cds_info
+
+
     def find_adjacent_pairs(self):
 	"""
 	@function - This function finds all the adjacent_pairs for the sent group_pair. 
@@ -265,22 +332,24 @@ class Groups:
 	difference_details = []
 	non_adjacent_gene_pairs = []
 	
-
-	self.group_a_members = self.find_group_members(group_a)
-	self.group_b_members = self.find_group_members(group_b)
+	#self.group_a_members = self.find_group_members(group_a)
+	#self.group_b_members = self.find_group_members(group_b)
+	self.group_a_members = self.get_group_members(group_a)	 # This uses dictionaries to retrieve the data
+	self.group_b_members = self.get_group_members(group_b)
+	
 	gene_a_occurrences = len(self.group_a_members)
 	gene_b_occurrences = len(self.group_b_members)
 	lone_gene_occurrences = abs(gene_a_occurrences - gene_b_occurrences)	#This is the number of genes, which was present in one group for an organism, but for the same organism, the second group didnt have any genes. So the would be group should be considered Null
 
 	for gene_a in self.group_a_members:
 	    rank_a,orientation_a,left_end_a,right_end_a, acc_no_a = gene_a[1], gene_a[2], gene_a[3], gene_a[4], gene_a[5]
+	    
 
 	    for gene_b in self.group_b_members:
 		rank_b,orientation_b,left_end_b,right_end_b, acc_no_b = int(gene_b[1]), gene_b[2], int(gene_b[3]), int(gene_b[4]), gene_b[5]
-		
 		if acc_no_a == acc_no_b:	#Ensures only the same species is checked
 		    orientation_status = self.check_orientation(orientation_a, orientation_b)
-		    
+		    #pdb.set_trace()
 		    if not (orientation_status == 'opposite'):
 			rank_difference, distance = self.compute_rank_difference(orientation_status, gene_a, gene_b)
 			if rank_difference == 1:
@@ -319,18 +388,29 @@ def get_cluster_locus_tag_dictionary():
     """
     
     # Initializing
-    file_name = 'cluster_locus_tag.txt'
+    print "Processing dictionaries"
+    file_name = 'ecoli_homolog_group_locus.txt'
     ifile = open_file(file_name)
     lines = ifile.readlines()
     ifile.close()
-    cluster_dictionary = {}
+    already_list = []
+    group_all_dictionary = {}
+    cluster_dict = {}
+    i = 0
     
     for line in lines:
-	cluster_accession, locus_tag = line.split('\t')[0],line.split('\t')[1]
-	cluster_dictionary[locus_tag] = cluster_accession
-
-    return cluster_dictionary
-
+	i+=1
+	cluster_accession, locus_tag = line.split('\t')[0],line.split('\t')[1][:-1]
+	cluster_dict[locus_tag] = cluster_accession
+	try: 
+	    already_list = group_all_dictionary[cluster_accession]
+	    already_list = already_list.append(locus_tag)
+	except KeyError:
+	    already_list = []
+	    already_list.append(locus_tag)
+	    group_all_dictionary[cluster_accession] = already_list
+	    
+    return cluster_dict, group_all_dictionary
 
 def get_operons(file_name):
     """
@@ -341,7 +421,6 @@ def get_operons(file_name):
     ifile = open_file(file_name)
     lines = ifile.readlines()
     ifile.close()
-    
     redundant_operon_list =([line.split('\t')[0] for line in lines]) 
     operon_list = set(redundant_operon_list)
     
@@ -354,21 +433,22 @@ def get_genes(query_operon):
     group_order: [group1, group2, ...]
     @function: Looks up the text file - bsub_data.txt to obtain information of all bsub genes that match the operon description
     """
-	
+
     #Initializing
     bsub_genes_information = []
     group_order = []
     orientation_status = ''
     
     #ifile = open_file('ecoli_cluster.txt')
-    ifile = open_file('bsub_data.txt')
+    #ifile = open_file('bsub_data.txt')
+    ifile = open_file('ecoli_homolog_data.txt')
     lines = ifile.readlines()
     ifile.close()
 
     for line in lines:
 	if query_operon == line.split('\t')[0]:
 	    split_line = line.split('\t')
-	    [locus_tag, rank, orientation, left_end, right_end, group_id] = split_line[1], split_line[3], split_line[4], split_line[5], split_line[6], split_line[7]
+	    [locus_tag, rank, orientation, left_end, right_end, group_id] = split_line[1], split_line[3], split_line[4], split_line[5], split_line[6], split_line[7][:-1]	#Note-[:-1] added only when group_id is the last entry
 	    orientation_status = orientation
 	    
 	    bsub_genes_information.append([locus_tag, rank, orientation, left_end, right_end, group_id])
@@ -400,26 +480,26 @@ def get_group_pairs(groups):
 	    
     return group_pairs
 
-def compute_within_operon_walks(operon,cluster_dictionary,out_file_name):
+def compute_within_operon_walks(operon,count,out_file_name):
     """
     @param operon: Operon name 
     @param cluster_dictionary: The dictionary of locus_tag: cluster_id
     @param out_file_name: The name of the file to which the information computed will be written. 
     @function: One operon name is passed. Computes the FGOC score for each walk within this operon and returns details of all adjacent genes, the genes that weren't adjacent but in the same organism. The total number of gene_pairs conserved etc are calculated. 
     """
-    
+    #cluster_dictionary,group_all_locus_dictionary,locus_cds_dictionary
     # Initializing
     walk_number = 1
     total_groups = []
     total_conserved_gene_pairs = 0
     nbr_group_pairs = 0
-  
+    i = 0
+    print "Processing operon %d : %s"%(count,operon)
     # (1) Get all genes in the particular operon. genes - information of the gene
     genes, group_order, orientation_status = get_genes(operon)
-    
     # (2) Check if the number of genes in the operon > 1. This is the correct definition of an operon. If yes continue further. 
     if len(group_order) > 1:
-		
+
 	# (3) Reverse group order if the orientation is reverse
 	if orientation_status == 'reverse':
 	    group_order.reverse()
@@ -429,16 +509,36 @@ def compute_within_operon_walks(operon,cluster_dictionary,out_file_name):
 	
 	# (5) Iterate over each group_pair and obtain the details of total conserved_gene_pairs, number_adjacent_gene_pairs; This will use the class Groups
 	for pair in group_pairs:
-	    gene_pair = Groups(pair, cluster_dictionary)
-
+	    i+=1
+	    gene_pair = Groups(pair)
 	    
 	    # Class Groups is called and the details of the find_adjacent_pairs, difference_details etc are obtained. Importantly the became_adjacent gene pair i.e. of the gene_pairs which were not adjacent, the details of what is the gene next to it. It is computationally a little more time consuming but is there in the class Groups and can be modified and used. 
 	    gene_a_occurrences, gene_b_occurrences, number_conserved_gene_pair, difference_details, non_adjacent_gene_pairs = gene_pair.find_adjacent_pairs()
-	    
+	    #*********Modification for Ecoli - homolog group *****
+	    non_adjacent_acc_nbrs = set([(item[0])[5] for item in non_adjacent_gene_pairs])
+	    print "gene occurrences : %d %d"%(gene_a_occurrences, gene_b_occurrences)
+	    # Obtain Accession numbers of all genes in difference_details
+	    if len(difference_details) == 1:
+		number_conserved_gene_pair = 0
+	    else:
+		acc_nbrs = set([(item[0])[5] for item in difference_details])
+		# The number of conserved_gene_pair is always the number of non - redundant acc_nbrs set
+		number_conserved_gene_pair = len(acc_nbrs)
+		# Count the non_adj_acc_nbrs that was not in the conserved_acc_nbrs to get a count of number of non_adjacent_acc_nbrs
+		count = 0
+		for non_adj_org in non_adjacent_acc_nbrs:
+		    if not non_adj_org in acc_nbrs:
+			count+=1
+		number_non_adjacent_gene_pairs = count
 	    
 	    # (6) Calculate the fgoc score (Remember to import _future_ division)
-	    number_non_adjacent_gene_pairs = len(non_adjacent_gene_pairs)
-	    fgoc_score = number_conserved_gene_pair / (number_conserved_gene_pair + number_non_adjacent_gene_pairs)
+	    number_non_adjacent_gene_pairs = len(non_adjacent_acc_nbrs)
+	    try:
+		fgoc_score = number_conserved_gene_pair / (number_conserved_gene_pair + number_non_adjacent_gene_pairs)
+	    except ZeroDivisionError:
+		fgoc_score = 0
+	    print "Processing .. %s"%(pair)
+	    print number_conserved_gene_pair, number_non_adjacent_gene_pairs, fgoc_score
 	    
 	    # (7) Writing the information to the file. 
 	    information_for_file = '\t'.join(item for item in [operon, str(pair), str(walk_number), str(fgoc_score), str(number_conserved_gene_pair), str(number_non_adjacent_gene_pairs), str(gene_a_occurrences), str(gene_b_occurrences), str(difference_details), str(non_adjacent_gene_pairs),'\n'])
@@ -472,7 +572,7 @@ def get_all_genome_pairs(file_name):
     
     # (2) Iterate through lines and obtain operon_name and group_id for all the genes in the file
     for line in lines:
-	operon_name, group_id = line.split('\t')[0], line.split('\t')[7]
+	operon_name, group_id = line.split('\t')[0], (line.split('\t')[7])[:-1]
 	list_all_genome_pairs.append([operon_name,group_id])
     
     return list_all_genome_pairs
@@ -511,7 +611,7 @@ def get_btwn_operon_pairs(file_name):
     
     return list_pair_bw_operons
 
-def compute_bw_pair_walks(pair,cluster_dictionary,out_file):
+def compute_bw_pair_walks(pair,out_file):
     """
     @param pair: A pair of group_id [grp1,grp2]
     @out_file: name of the output file to be written
@@ -520,19 +620,46 @@ def compute_bw_pair_walks(pair,cluster_dictionary,out_file):
     """
     
     # Initializing
-    
+    # Checking orientation
+    bnumber_1 = (pair[0])[6:]	#Remove the ECHOM_ part of the group name
+    orientation_1 = (locus_cds_dictionary[bnumber_1])[2]
+    bnumber_2 = (pair[1])[6:]	#Remove the ECHOM_ part of the group name
+    orientation_2 = (locus_cds_dictionary[bnumber_2])[2]
+    print orientation_1, orientation_2
+    if orientation_1 == 'reverse' and orientation_2 == 'reverse':
+	pair.reverse()	# Reverse the group pair
+
     # (1) Class file Groups is assigned to gene_pair 
-    gene_pair = Groups(pair, cluster_dictionary)
+    gene_pair = Groups(pair)
     
     # (2) Class Groups is called and the details of the find_adjacent_pairs, difference_details etc are obtained. Importantly the became_adjacent gene pair i.e. of the gene_pairs which were not adjacent, the details of what is the gene next to it. It is computationally a little more time consuming but is there in the class Groups and can be modified and used. 
     gene_a_occurrences, gene_b_occurrences, number_conserved_gene_pair, difference_details, non_adjacent_gene_pairs = gene_pair.find_adjacent_pairs()
     
+    # (3) Get a list of all non_adjacent_acc_nbrs
+    non_adjacent_acc_nbrs = set([(item[0])[5] for item in non_adjacent_gene_pairs])
+    print "gene occurrences : %d %d"%(gene_a_occurrences, gene_b_occurrences)
+    # Obtain Accession numbers of all genes in difference_details
+    if len(difference_details) == 1:
+	number_conserved_gene_pair = 0
+    else:
+	# For counting the number of adjacent gene pairs, use the set of acc_nbrs in the list
+	acc_nbrs = set([(item[0])[5] for item in difference_details])
+	# The number of conserved_gene_pair is always the number of non - redundant acc_nbrs set
+	number_conserved_gene_pair = len(acc_nbrs)
+	# Count the non_adj_acc_nbrs that was not in the conserved_acc_nbrs to get a count of number of non_adjacent_acc_nbrs
+	count = 0
+	for non_adj_org in non_adjacent_acc_nbrs:
+	    if not non_adj_org in acc_nbrs:
+		count+=1
+	number_non_adjacent_gene_pairs = count
     # (3) Calculate the fgoc score (Remember to import _future_ division)
     number_non_adjacent_gene_pairs = len(non_adjacent_gene_pairs)
     try:
 	fgoc_score = number_conserved_gene_pair / (number_conserved_gene_pair + number_non_adjacent_gene_pairs)
     except ZeroDivisionError:
 	fgoc_score = 0
+   
+    print fgoc_score
     
     # (4) Writing the information to the file. 
     information_for_file = '\t'.join(item for item in [str(pair), str(fgoc_score), str(number_conserved_gene_pair), str(number_non_adjacent_gene_pairs), str(gene_a_occurrences), str(gene_b_occurrences), str(difference_details), str(non_adjacent_gene_pairs),'\n'])
@@ -547,46 +674,95 @@ def main(arg):
     
     [argument] = arg
     
-    if argument == '1':	# argument 1 means within operon gene pairs
-	#(1) Get a key:value dictionary of all the clusters. 
-	cluster_dictionary = get_cluster_locus_tag_dictionary()
+    if argument == '0':
+	
+	#grp_locus_tags_dictionary = get_group_all_locus_dict()
+	#print grp_locus_tags_dictionary
 
+	
+	pkl_dir = os.getcwd() + '/shelve_files/'
+	cluster_dictionary = shelve.open(pkl_dir + 'ecoli_homolog_locus_tag:group_dictionary')
+	group_all_locus_dictionary = shelve.open(pkl_dir + 'ecoli_homolog_group:all_locus_tag_dictionary')
+
+	#(1) Get a key:value dictionary of all the clusters. 
+	cluster_dict, group_all_dictionary = get_cluster_locus_tag_dictionary()
+	print "Dictionaries created. Shelving ..."
+	for keys, values in cluster_dict.items():
+	    cluster_dictionary[keys] = values
+	print "Cluster_dictionary shelved"
+	
+	for keys, values in group_all_dictionary.items():
+	    group_all_locus_dictionary[keys] = values
+	
+	print "group_all_locus_dictionary shelved"
+	print cluster_dictionary['b0007']
+	cluster_dictionary.close()
+	group_all_locus_dictionary.close()
+
+	##(2) Pickle the two dictionaries
+	#pkl_dir = os.getcwd() + '/pkl_files/'
+	#pkl_file_name = pkl_dir + 'ecoli_homolog_locus_tag:group_dictionary.pkl'
+	#ofile = open(pkl_file_name,'wb')
+	#cPickle.dump(cluster_dictionary,ofile)
+	#ofile.close()
+	
+	#pkl_dir = os.getcwd() + '/pkl_files/'
+	#pkl_file_name = pkl_dir + 'ecoli_homolog_group:all_locus_tag_dictionary.pkl'
+	#ofile = open(pkl_file_name,'wb')
+	#cPickle.dump(group_all_locus_dictionary,ofile)
+	#ofile.close()
+	
+		
+    if argument == '1':	# argument 1 means within operon gene pairs
+
+	pkl_dir = os.getcwd() + '/pkl_files/'
+	
+	## (1) Unpickle the cluster_dictionary
+	
 	#(2) Obtain a list of all operons (non-redundant) from bsub_data.txt
 	#file_name = 'bsub_data_door.txt'	#For the file parsed from DOOR
-	file_name = 'ecoli_cluster.txt'	#For E.coli cluster 
+	#file_name = 'ecoli_cluster.txt'	#For E.coli cluster 
+	
+	file_name = 'ecoli_homolog_data.txt'
 	operon_list = get_operons(file_name)
 
+	
 	#(3) Make an output file. If it already exists delete it. 
 	#out_file_name = 'walk_in_bsub_operons.txt'
 	#out_file_name = 'walk_in_bsub_operons_door.txt'	#Changing output for the DOOR operon
-	out_file_name = 'walk_in_ecoli_operons_ver2.txt'
+	out_file_name = 'walk_in_ecoli_operons_ver6_homolog.txt'
 	if os.path.exists(out_file_name):
 	    os.remove(out_file_name)        
 
 	#(4) Within operon walks. Iterates over the operon list. Computes the FGOC score for each walk within the operon and returns details of all adjacent genes, the genes that weren't adjacent but in the same organism and would be adjacent genes. 
+	group_all_locus_dictionary = []
+	locus_cds_dictionary = []
+	count = 0
 	for operon in operon_list:
-	    print "Processing operon : %s"%(operon)
-	    compute_within_operon_walks(operon,cluster_dictionary,out_file_name)
-
+	    count+=1
+	    compute_within_operon_walks(operon,count,out_file_name)
+	#operon = 'yehLMPQ'
+	#compute_within_operon_walks(operon,out_file_name)
+	
     if argument == '2': # argument 2 means between operon gene pairs
 	#(1) Get a key:value dictionary of all the clusters. 
-	cluster_dictionary = get_cluster_locus_tag_dictionary()
-	
+	#cluster_dictionary = get_cluster_locus_tag_dictionary()
 	#(2) Obtain a list of all pairs between operons, but adjacent. 
 	#file_name = 'ecoli_cluster.txt'
-	file_name = 'bsub_data.txt'
+
+	file_name = 'ecoli_homolog_data.txt'
 	pair_list = get_btwn_operon_pairs(file_name)
 	
 	#(3) Make an output file. If already exits delete it
 	#out_file_name = 'bw_ecoli_operons.ver2.txt'
-	out_file_name = 'bw_bsub_operons.ver1.txt'
+	out_file_name = 'bw_ecoli_operons_homology_ver6.txt'
 	if os.path.exists(out_file_name):
 	    os.remove(out_file_name)
 
 	#(4) Iterate over the list and for each pairwise group_ids, compute the scores, gene details etc and write it to the out_file.
 	for pair in pair_list:
 	    print "Processing...%s pair"%(pair)
-	    compute_bw_pair_walks(pair,cluster_dictionary,out_file_name)
+	    compute_bw_pair_walks(pair,out_file_name)
     
     if argument == '3': # argument 3 means across gene pairs that occur sequentially. It doesnt consider orientation, just the sequential nature. Encompasses both the between operon and within operon scores
 	#(1) Get a key:value dictionary of all the clusters. 
@@ -606,6 +782,7 @@ def main(arg):
 	    print "Processing...%s pair"%(pair)
 	    compute_bw_pair_walks(pair,cluster_dictionary,out_file_name)
     
+    
     return
 
 if __name__ == '__main__':
@@ -620,5 +797,5 @@ if __name__ == '__main__':
     conn.close()
     
     import time
-    print "Script - fgoc_all_genome.py - B.subtilis \t Completed \t %s"%(time.strftime("%d %b %Y %H:%M:%S",time.localtime()))
+    print "Script - fgoc_all_genome.py - E.coli \t Completed \t %s"%(time.strftime("%d %b %Y %H:%M:%S",time.localtime()))
 
