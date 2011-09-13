@@ -29,7 +29,7 @@ def get_operon_locus(ifile):
     """
     #Initializing
     operon_locus = []
-    
+    ls
     lines = ifile.readlines()
     for line in lines:
 	operon_id, locus_tag = line.split('\t')[0], line.split('\t')[2]
